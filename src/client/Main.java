@@ -12,7 +12,6 @@ import java.util.logging.SocketHandler;
 
 public class Main {
 
-    private static Logger logger = Logger.getAnonymousLogger();
     public static void main(String[] args)
     {
         // establish a connection by providing host and port

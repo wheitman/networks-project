@@ -1,8 +1,6 @@
 package server;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 
 public class Connection extends Thread {
@@ -15,18 +13,46 @@ public class Connection extends Thread {
 
     @Override
     public void run() {
+        PrintWriter out = null;
+        BufferedReader in = null;
         try {
-            // Create a buffered reader to handle the socket's input stream
-            BufferedReader inputStream = new BufferedReader( new InputStreamReader(socket.getInputStream()));
-            // Create a PrintWriter to format our output. "True" flushes automatically
-            output = new PrintWriter(socket.getOutputStream(), true);
-            while (true) {
-                String inputStr = inputStream.readLine();
-                System.out.println("Received {} from client".formatted(inputStr));
-            }
 
-        } catch (Exception e) {
-            System.out.println("[CONNECTION] An exception occurred: "+e.getStackTrace());
+            // get the outputstream of client
+            out = new PrintWriter(
+                    socket.getOutputStream(), true);
+
+            // get the inputstream of client
+            in = new BufferedReader(
+                    new InputStreamReader(
+                            socket.getInputStream()));
+
+            String line;
+            while ((line = in.readLine()) != null) {
+
+                // writing the received message from
+                // client
+                System.out.printf(
+                        " Sent from the client: %s\n",
+                        line);
+                out.println(line);
+            }
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+        finally {
+            try {
+                if (out != null) {
+                    out.close();
+                }
+                if (in != null) {
+                    in.close();
+                    socket.close();
+                }
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

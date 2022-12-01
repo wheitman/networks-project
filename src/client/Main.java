@@ -1,37 +1,56 @@
 package client;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Scanner;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SocketHandler;
 
 public class Main {
-    public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
-        System.out.println("Hello from the Client package!");
 
-        InetAddress host = InetAddress.getLocalHost();
-        Socket socket = null;
-        ObjectOutputStream oos = null;
-        ObjectInputStream ois = null;
+    private static Logger logger = Logger.getAnonymousLogger();
+    public static void main(String[] args)
+    {
+        // establish a connection by providing host and port
+        // number
+        try (Socket socket = new Socket("localhost", 1234)) {
 
-        for (int i=0; i < 5; i++) {
-            socket = new Socket(host.getHostName(), 5000);
-            oos = new ObjectOutputStream(socket.getOutputStream());
-            if (i == 4) {
-                oos.writeObject("exit");
-            } else {
-                oos.writeObject("" + i);
+            // writing to server
+            PrintWriter out = new PrintWriter(
+                    socket.getOutputStream(), true);
+
+            // reading from server
+            BufferedReader in
+                    = new BufferedReader(new InputStreamReader(
+                    socket.getInputStream()));
+
+            // object of scanner class
+            Scanner sc = new Scanner(System.in);
+            String line = null;
+
+            while (!"exit".equalsIgnoreCase(line)) {
+
+                // reading from user
+                line = sc.nextLine();
+
+                // sending the user input to server
+                out.println(line);
+                out.flush();
+
+                // displaying server reply
+                System.out.println("Server replied "
+                        + in.readLine());
             }
 
-            ois = new ObjectInputStream(socket.getInputStream());
-            String msg = (String) ois.readObject();
-            System.out.println("Message: %s".formatted(msg));
-
-            ois.close();
-            oos.close();
-            Thread.sleep(100);
+            // closing the scanner object
+            sc.close();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

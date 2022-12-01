@@ -12,32 +12,51 @@ public class Main {
     public Main() throws IOException {
     }
 
-    public static void main(String[] args) {
-        System.out.println("[SERVER] Waiting for client connections...");
+    public static void main(String[] args)
+    {
+        ServerSocket server = null;
 
-        ArrayList<Connection> connections = new ArrayList<>();
+        try {
 
-        try (ServerSocket serverSocket = new ServerSocket(5000)) {
+            // server is listening on port 1234
+            server = new ServerSocket(1234);
+            server.setReuseAddress(true);
+
+            // running infinite loop for getting
+            // client request
             while (true) {
-                // Listen for an incoming connection and accept it
-                Socket socket = serverSocket.accept();
 
-                ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-                String message = (String) ois.readObject();
-                System.out.println("Received %s".formatted(message));
+                // socket object to receive incoming client
+                // requests
+                Socket client = server.accept();
 
-                ObjectOutputStream oos = new ObjectOutputStream((socket.getOutputStream()));
-                oos.writeObject("I heard: %s".formatted(message));
-                ois.close();
-                oos.close();
-                socket.close();
-                if(message.equalsIgnoreCase("exit"))
-                    break;
+                // Displaying that new client is connected
+                // to server
+                System.out.println("New client connected"
+                        + client.getInetAddress()
+                        .getHostAddress());
+
+                // create a new thread object
+                Connection clientSock
+                        = new Connection(client);
+
+                // This thread will handle the client
+                // separately
+                new Thread(clientSock).start();
             }
-            System.out.println("Shutting down the server");
-            serverSocket.close();
-        } catch (Exception e) {
-            System.out.println("[CONNECTION] An exception occurred: " + e.getStackTrace());
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+        finally {
+            if (server != null) {
+                try {
+                    server.close();
+                }
+                catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 }

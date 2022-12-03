@@ -22,12 +22,9 @@ public class Main {
             server = new ServerSocket(1234);
             server.setReuseAddress(true);
 
-            // running infinite loop for getting
-            // client request
             while (true) {
 
-                // socket object to receive incoming client
-                // requests
+                // socket object to receive incoming client requests
                 Socket client = server.accept();
 
                 // Displaying that new client is connected

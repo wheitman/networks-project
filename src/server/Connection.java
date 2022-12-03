@@ -29,20 +29,34 @@ public class Connection extends Thread {
         System.out.println("Client with IP %s connected at %s".formatted(socket.getInetAddress(), dtFormatter.format(connectionTime)));
     }
 
+    double parseExpression(Request request) {
+        String expr = request.expression;
+        return -1.0;
+    }
+
     void processRequest(Request request) {
         Response response = new Response();
         response.seq = request.seq;
 
-        // If handshake not yet performed, throw error
-        if (request.action != Action.JOIN && username == null) {
-            response.status = Status.ERROR;
-            response.error = Error.NOT_INTRODUCED;
-        } else if (request.action == Action.JOIN) {
-            response.status = Status.SUCCESS;
-        } else if (request.action == Action.LEAVE) {
-            response.status = Status.SUCCESS;
-            keepAlive = false;
-            System.out.println("DIE!");
+        switch (request.action) {
+            case JOIN:
+                if (username == null) {
+                    response.status = Status.ERROR;
+                    response.error = Error.NOT_INTRODUCED;
+                } else {
+                    response.status = Status.SUCCESS;
+                }
+                break;
+            case LEAVE:
+                response.status = Status.QUITTING;
+                keepAlive = false;
+                break;
+            case CALCULATE:
+                response.answer = parseExpression(request);
+                break;
+            default: // Request action was not valid. Send an error response.
+                response.error = Error.REQUEST_MALFORMED;
+                response.status = Status.ERROR;
         }
 
         String responseString = """
@@ -81,21 +95,45 @@ public class Connection extends Thread {
 
             while ((requestLine = in.readLine()) != null && keepAlive) {
                 System.out.println("Received "+ requestLine);
+                String[] parts = requestLine.split(":");
+                String tag = parts[0].strip().toLowerCase();
 
-                // Is this the beginning of a new request?
-                if (requestLine.contains("[[")) {
-                    // Reset the current request string
-                    request = new Request();
-                } else if (requestLine.contains("]]")) {
-                    // This is the end of a request. Process it.
+                if (requestLine.strip() == "[[")
+                    tag = "[[";
+                else if (requestLine.strip() == "]]")
+                    tag = "]]";
+
+                if (parts.length !=2 && !tag.contains("[[") && !tag.contains("]]")) {
+                    request.action = Action.INVALID;
                     processRequest(request);
-                } else if (requestLine.contains("Seq")) {
-                    request.seq = Integer.parseInt(requestLine.split(":")[1].strip());
-                } else if (requestLine.contains("Username")) {
-                    username = requestLine.split(":")[1].strip();
-                    System.out.println("Welcome, %s".formatted(username));
-                } else if (requestLine.contains("Action: leave")) {
-                    request.action = Action.LEAVE;
+                    System.out.println("Tag was: "+tag);
+                }
+
+                switch (tag) {
+                    case "[[":
+                        // Begin a new request.
+                        request = new Request(); break;
+                    case "]]":
+                        // This is the end of a request. Process it.
+                        processRequest(request); break;
+                    case "seq":
+                        request.seq = Integer.parseInt(parts[1].strip()); break;
+                    case "username":
+                        username = requestLine.split(":")[1].strip(); break;
+                    case "action":
+                        String actionString = parts[1].strip();
+                        switch (actionString.toLowerCase()){
+                            case "leave":
+                                request.action = Action.LEAVE; break;
+                            case "calculate":
+                                request.action = Action.CALCULATE; break;
+                            default:
+                                request.action = Action.INVALID; break;
+                        }
+                        break;
+                    default:
+                        request.action = Action.INVALID;
+                        processRequest(request);
                 }
 
                 if (keepAlive == false)

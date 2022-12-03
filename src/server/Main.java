@@ -36,6 +36,9 @@ public class Main {
                         + client.getInetAddress()
                         .getHostAddress());
 
+                System.out.println(client.getPort());
+                System.out.println(client.getLocalPort());
+
                 // create a new thread object
                 Connection clientSock
                         = new Connection(client);

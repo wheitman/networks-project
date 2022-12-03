@@ -31,9 +31,14 @@ public class Main {
             Scanner sc = new Scanner(System.in);
             String line = null;
 
+            System.out.print("What is your username? ");
+            String uname = sc.nextLine();
+            System.out.println("Welcome, %s. Type a math expression to send to the server, or 'q' to quit.".formatted(uname));
+
             while (!"exit".equalsIgnoreCase(line)) {
 
                 // reading from user
+                System.out.print("Expression: ");
                 line = sc.nextLine();
 
                 // sending the user input to server
@@ -41,7 +46,7 @@ public class Main {
                 out.flush();
 
                 // displaying server reply
-                System.out.println("Server replied "
+                System.out.println("Response: "
                         + in.readLine());
             }
 

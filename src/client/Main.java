@@ -31,30 +31,53 @@ public class Main {
             Scanner sc = new Scanner(System.in);
             String line = null;
 
-            System.out.print("What is your username? ");
-            String uname = sc.nextLine();
-            System.out.println("Welcome, %s. Type a math expression to send to the server, or 'q' to quit.".formatted(uname));
+//            System.out.print("What is your username? ");
+//            String uname = sc.nextLine();
+//            System.out.println("Welcome, %s. Type a math expression to send to the server, or 'q' to quit.".formatted(uname));
 
-            while (!"exit".equalsIgnoreCase(line)) {
+            out.println("[[\n" +
+                    "   Username: jsmith\n" +
+                    "   Seq: 1\n" +
+                    "   Action: join\n" +
+                    "]]");
+            out.flush();
 
-                // reading from user
-                System.out.print("Expression: ");
-                line = sc.nextLine();
+            Thread.sleep(2000);
 
-                // sending the user input to server
-                out.println(line);
-                out.flush();
+            out.println("[[\n" +
+                    "   Seq: 1\n" +
+                    "   Action: leave\n" +
+                    "]]");
+            out.flush();
 
-                // displaying server reply
-                System.out.println("Response: "
-                        + in.readLine());
+            String response;
+
+            while ((response = in.readLine()) != null) {
+                System.out.println(response);
             }
+
+//            while (!"exit".equalsIgnoreCase(line)) {
+//
+//                // reading from user
+//                System.out.print("Expression: ");
+//                line = sc.nextLine();
+//
+//                // sending the user input to server
+//                out.println(line);
+//                out.flush();
+//
+//                // displaying server reply
+//                System.out.println("Response: "
+//                        + in.readLine());
+//            }
 
             // closing the scanner object
             sc.close();
         }
         catch (IOException e) {
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 }

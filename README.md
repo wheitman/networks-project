@@ -5,7 +5,7 @@
 Build a networking application using Java sockets. Specifically, the application should have a central Math server and 2+ clients.
 
 ## Javadocs
-Javadocs are available at [https://heit.mn/networks-project](https://heit.mn/networks-project)
+Javadocs are available at [https://heit.mn/networks-project](https://heit.mn/networks-project/protocol/package-summary.html)
 
 ## Requirements
 - [x] The server keeps track of all users, including

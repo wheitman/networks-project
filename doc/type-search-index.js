@@ -1,0 +1,1 @@
+typeSearchIndex = [{"p":"protocol","l":"Action"},{"l":"All Classes and Interfaces","u":"allclasses-index.html"},{"p":"server","l":"Connection"},{"p":"protocol","l":"Error"},{"p":"client","l":"Main"},{"p":"server","l":"Main"},{"p":"protocol","l":"Request"},{"p":"protocol","l":"Response"},{"p":"protocol","l":"Status"}];updateSearchResults();

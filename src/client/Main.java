@@ -83,9 +83,8 @@ public class Main {
 
             // object of scanner class
             Scanner sc = new Scanner(System.in);
-            String line = null;
 
-            System.out.println("Connected to %s:%d".formatted(address, port));
+            System.out.printf("Connected to %s:%d%n", address, port);
 
             System.out.print("What is your username? ");
             String uname = sc.nextLine();
@@ -119,7 +118,7 @@ public class Main {
                 req.seq = seq;
                 req.expression = input;
 
-                out.println(req.toString());
+                out.println(req);
 
                 getResponse();
 
@@ -129,7 +128,7 @@ public class Main {
             System.out.println("Leaving. Goodbye, "+uname);
 
             req.action = Action.LEAVE;
-            out.println(req.toString());
+            out.println(req);
 
             sc.close();
         }

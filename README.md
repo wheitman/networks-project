@@ -4,6 +4,21 @@
 
 Build a networking application using Java sockets. Specifically, the application should have a central Math server and 2+ clients.
 
+## Javadocs
+Javadocs are available at [https://heit.mn/networks-project](https://heit.mn/networks-project/protocol/package-summary.html)
+
+## Usage
+1. Start the server with `java server.Main`
+2. Start a client with `java client.Main`
+3. Follow the prompts for the client. It will ask for your username and desired answer precision.
+4. Send a math expression and wait for a response.
+5. Repeat steps 2-4 with an arbitrary number of clients.
+
+### Example expressions
+- `2+4-3/(4+5*(3-4))`
+- `2*sqrt(3)`
+- `(3^2)^3`
+
 ## Requirements
 - [x] The server keeps track of all users, including
     - Who
@@ -48,7 +63,7 @@ To establish a connection, the client and server must first perform a simple han
 ```
 ##### Response (success)
 
-```json
+```
 [[
     Seq:	1
     Status: success
@@ -57,7 +72,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Response (error)
 
-```json
+```
 [[
    	Seq: 1
     Status: error
@@ -69,7 +84,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Request
 
-```json
+```
 [[
     Seq: 54, 		// Example value
     Action: leave
@@ -78,7 +93,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Response
 
-```json
+```
 [[
     Seq: 54, 		// Example value
     Status: success
@@ -89,7 +104,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Request
 
-```json
+```
 [[
     Seq: 14, 		// Example value
     Action: calculate
@@ -100,7 +115,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Response (success)
 
-```json
+```
 [[
     Seq: 14 		// Example value
     Status: success
@@ -110,7 +125,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Response (error)
 
-```json
+```
 [[
    	Seq: 14
     Status: error

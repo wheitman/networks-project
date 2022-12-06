@@ -45,9 +45,23 @@ public class Connection extends Thread {
     void setUpLogger() throws IOException {
         if (loggerIsSetup)
                 return;
-        DateTimeFormatter logStampFormatter = DateTimeFormatter.ofPattern("yyyy.MM.dd.HH.mm.ss");
+        DateTimeFormatter logStampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss");
         fh = new FileHandler("%s_%s.log".formatted(username, logStampFormatter.format(connectionTime)));
 
+        ConsoleHandler handler = new ConsoleHandler();
+        handler.setFormatter(new SimpleFormatter() {
+            private static final String format = "[%1$tF %1$tT] [%2$-7s] %3$s %n";
+
+            @Override
+            public synchronized String format(LogRecord lr) {
+                return String.format(format,
+                        new Date(lr.getMillis()),
+                        lr.getLevel().getLocalizedName(),
+                        lr.getMessage()
+                );
+            }
+        });
+        logger.addHandler(handler);
         logger.addHandler(fh);
         SimpleFormatter formatter = new SimpleFormatter();
         fh.setFormatter(formatter);
@@ -189,7 +203,7 @@ public class Connection extends Thread {
                 break;
             case CALCULATE:
                 response = parseExpression(request);
-                logger.info("Expression: %s, answer: %d".formatted(request.expression, response.answer));
+                logger.info("Expression: %s, answer: %f".formatted(request.expression, response.answer));
                 break;
             default: // Request action was not valid. Send an error response.
                 response.error = Error.MALFORMED_REQUEST;

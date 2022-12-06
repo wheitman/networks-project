@@ -27,14 +27,6 @@ public class Main {
                 // socket object to receive incoming client requests
                 Socket client = server.accept();
 
-                // Displaying that new client is connected
-                // to server
-                System.out.println("New client connected"
-                        + client.getInetAddress()
-                        .getHostAddress());
-
-                System.out.println(client.getPort());
-                System.out.println(client.getLocalPort());
 
                 // create a new thread object
                 Connection clientSock

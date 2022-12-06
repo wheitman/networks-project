@@ -8,9 +8,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.Locale;
+import java.util.logging.*;
 
 public class Connection extends Thread {
     private Socket socket;
@@ -21,17 +26,148 @@ public class Connection extends Thread {
     private PrintWriter out = null;
 
     boolean keepAlive = true;
+    boolean loggerIsSetup = false;
 
-    public Connection(Socket socket) {
+    Logger logger = Logger.getLogger("ConnectionLog");
+    FileHandler fh;
+
+    public Connection(Socket socket) throws IOException {
         this.socket = socket;
         this.connectionTime = LocalDateTime.now();
         this.dtFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
-        System.out.println("Client with IP %s connected at %s".formatted(socket.getInetAddress(), dtFormatter.format(connectionTime)));
+
+
+
+
+        logger.info("Client with IP %s connected at %s".formatted(socket.getInetAddress(), dtFormatter.format(connectionTime)));
     }
 
-    double parseExpression(Request request) {
-        String expr = request.expression;
-        return -1.0;
+    void setUpLogger() throws IOException {
+        if (loggerIsSetup)
+                return;
+        DateTimeFormatter logStampFormatter = DateTimeFormatter.ofPattern("yyyy.MM.dd.HH.mm.ss");
+        fh = new FileHandler("%s_%s.log".formatted(username, logStampFormatter.format(connectionTime)));
+
+        logger.addHandler(fh);
+        SimpleFormatter formatter = new SimpleFormatter();
+        fh.setFormatter(formatter);
+        loggerIsSetup = true;
+    }
+
+
+    // Thanks, Boann! https://stackoverflow.com/a/26227947/6238455
+    double eval(final String str) {
+        return new Object() {
+            int pos = -1, ch;
+
+            void nextChar() {
+                ch = (++pos < str.length()) ? str.charAt(pos) : -1;
+            }
+
+            boolean eat(int charToEat) {
+                while (ch == ' ') nextChar();
+                if (ch == charToEat) {
+                    nextChar();
+                    return true;
+                }
+                return false;
+            }
+
+            double parse() {
+                nextChar();
+                double x = parseExpression();
+                if (pos < str.length()) throw new RuntimeException("Unexpected: " + (char)ch);
+                return x;
+            }
+
+            // Grammar:
+            // expression = term | expression `+` term | expression `-` term
+            // term = factor | term `*` factor | term `/` factor
+            // factor = `+` factor | `-` factor | `(` expression `)` | number
+            //        | functionName `(` expression `)` | functionName factor
+            //        | factor `^` factor
+
+            double parseExpression() {
+                double x = parseTerm();
+                for (;;) {
+                    if      (eat('+')) x += parseTerm(); // addition
+                    else if (eat('-')) x -= parseTerm(); // subtraction
+                    else return x;
+                }
+            }
+
+            double parseTerm() {
+                double x = parseFactor();
+                for (;;) {
+                    if      (eat('*')) x *= parseFactor(); // multiplication
+                    else if (eat('/')) x /= parseFactor(); // division
+                    else return x;
+                }
+            }
+
+            double parseFactor() {
+                if (eat('+')) return +parseFactor(); // unary plus
+                if (eat('-')) return -parseFactor(); // unary minus
+
+                double x;
+                int startPos = this.pos;
+                if (eat('(')) { // parentheses
+                    x = parseExpression();
+                    if (!eat(')')) throw new RuntimeException("Missing ')'");
+                } else if ((ch >= '0' && ch <= '9') || ch == '.') { // numbers
+                    while ((ch >= '0' && ch <= '9') || ch == '.') nextChar();
+                    x = Double.parseDouble(str.substring(startPos, this.pos));
+                } else if (ch >= 'a' && ch <= 'z') { // functions
+                    while (ch >= 'a' && ch <= 'z') nextChar();
+                    String func = str.substring(startPos, this.pos);
+                    if (eat('(')) {
+                        x = parseExpression();
+                        if (!eat(')')) throw new RuntimeException("Missing ')' after argument to " + func);
+                    } else {
+                        x = parseFactor();
+                    }
+                    if (func.equals("sqrt")) x = Math.sqrt(x);
+                    else if (func.equals("sin")) x = Math.sin(Math.toRadians(x));
+                    else if (func.equals("cos")) x = Math.cos(Math.toRadians(x));
+                    else if (func.equals("tan")) x = Math.tan(Math.toRadians(x));
+                    else throw new RuntimeException("Unknown function: " + func);
+                } else {
+                    throw new RuntimeException("Unexpected: " + (char)ch);
+                }
+
+                if (eat('^')) x = Math.pow(x, parseFactor()); // exponentiation
+
+                return x;
+            }
+        }.parse();
+    }
+
+    Response parseExpression(Request request) {
+        Response response = new Response();
+        try {
+            // In order to parse the double, we must force the DecimalFormat class to
+            // use the American standard. ¯\_(ツ)_/¯
+            NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
+            DecimalFormat df = (DecimalFormat)nf;
+            df.setMaximumFractionDigits(request.precision);
+            df.setMinimumFractionDigits(request.precision);
+
+            // The eval function returns a double.
+            double unroundedAnswer = eval(request.expression);
+            df.setGroupingUsed(false);
+            // ...which is converted to a String by DecimalFormat...
+            String answerStr = df.format(unroundedAnswer).replace(",", "");
+            logger.fine(unroundedAnswer+" -> "+ answerStr);
+            // ...which is finally sent back to a double.
+            response.answer = Double.parseDouble(answerStr);
+
+            response.status = Status.SUCCESS;
+        } catch (Exception e) {
+            response.status = Status.ERROR;
+            logger.warning("Invalid expression detected. Exception: "+e);
+            response.error = Error.INVALID_EXPRESSION;
+        }
+        return response;
     }
 
     void processRequest(Request request) {
@@ -52,10 +188,11 @@ public class Connection extends Thread {
                 keepAlive = false;
                 break;
             case CALCULATE:
-                response.answer = parseExpression(request);
+                response = parseExpression(request);
+                logger.info("Expression: %s, answer: %d".formatted(request.expression, response.answer));
                 break;
             default: // Request action was not valid. Send an error response.
-                response.error = Error.REQUEST_MALFORMED;
+                response.error = Error.MALFORMED_REQUEST;
                 response.status = Status.ERROR;
         }
 
@@ -72,7 +209,7 @@ public class Connection extends Thread {
                 response.answer,
                 response.error
         );
-        System.out.println("Sending: "+responseString);
+//        System.out.println("Sending: "+responseString);
         out.println(responseString);
     }
 
@@ -94,7 +231,7 @@ public class Connection extends Thread {
             Request request = new Request();
 
             while ((requestLine = in.readLine()) != null && keepAlive) {
-                System.out.println("Received "+ requestLine);
+//                System.out.println("Received "+ requestLine);
                 String[] parts = requestLine.split(":");
                 String tag = parts[0].strip().toLowerCase();
 
@@ -106,7 +243,7 @@ public class Connection extends Thread {
                 if (parts.length !=2 && !tag.contains("[[") && !tag.contains("]]")) {
                     request.action = Action.INVALID;
                     processRequest(request);
-                    System.out.println("Tag was: "+tag);
+                    logger.warning("Received malformed request. Offending line was: "+tag);
                 }
 
                 switch (tag) {
@@ -119,10 +256,18 @@ public class Connection extends Thread {
                     case "seq":
                         request.seq = Integer.parseInt(parts[1].strip()); break;
                     case "username":
-                        username = requestLine.split(":")[1].strip(); break;
+                        username = parts[1].strip();
+                        setUpLogger();
+                        break;
+                    case "expression":
+                        request.expression = parts[1].strip(); break;
+                    case "precision":
+                        request.precision = Integer.parseInt(parts[1].strip()); break;
                     case "action":
                         String actionString = parts[1].strip();
                         switch (actionString.toLowerCase()){
+                            case "join":
+                                request.action = Action.JOIN; break;
                             case "leave":
                                 request.action = Action.LEAVE; break;
                             case "calculate":
@@ -132,6 +277,7 @@ public class Connection extends Thread {
                         }
                         break;
                     default:
+                        logger.severe("Invalid line: "+requestLine);
                         request.action = Action.INVALID;
                         processRequest(request);
                 }
@@ -145,7 +291,8 @@ public class Connection extends Thread {
             LocalDateTime now = LocalDateTime.now();
             long minutes = ChronoUnit.MINUTES.between(connectionTime, now);
             long seconds = ChronoUnit.SECONDS.between(connectionTime, now);
-            System.out.println("Client '%s' with IP %s disconnected at %s, was connected for %dm%ds".formatted(username, socket.getInetAddress(), dtFormatter.format(connectionTime), minutes, seconds));
+            logger.info("Client '%s' with IP %s disconnected at %s, was connected for %dm%ds".formatted(username, socket.getInetAddress(), dtFormatter.format(connectionTime), minutes, seconds));
+
             try {
                 if (out != null) {
                     out.close();

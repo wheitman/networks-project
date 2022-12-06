@@ -6,5 +6,25 @@ public class Request {
     public Action action;
     public String expression; // Math expression, e.g. "53+2/14"
     public int precision; // Desired number of decimal places in answer
+
+    public String toString() {
+        String requestString = """
+                [[
+                    Username: %s
+                    Seq: %d
+                    Action: %s
+                    Expression: %s
+                    Precision: %d
+                ]]
+                """.formatted(
+                username,
+                seq,
+                action,
+                expression,
+                precision
+        ).strip();
+
+        return requestString;
+    }
 }
 

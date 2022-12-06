@@ -1,83 +1,130 @@
 package client;
 
+import protocol.Action;
+import protocol.Request;
+import protocol.Response;
+
 import java.io.*;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.Scanner;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.SocketHandler;
 
 public class Main {
+
+   static PrintWriter out = null;
+   static BufferedReader in = null;
+
+    static void sendWelcome(String username) throws IOException {
+        Request handshakeReq = new Request();
+        handshakeReq.seq = 0;
+        handshakeReq.action = Action.JOIN;
+        handshakeReq.username = username;
+
+        out.println(handshakeReq.toString());
+        String responseLine;
+        while ((responseLine = in.readLine()) != null && !(responseLine = in.readLine()).contains("]]")) {
+
+        }
+    }
+
+    static Response getResponse() throws IOException {
+        Response response = new Response();
+        String responseLine = in.readLine();
+
+        boolean invalidExpression = false;
+        double answer = -1.0;
+        while (responseLine != null && !responseLine.contains("]]")) {
+
+            if (responseLine.toLowerCase().contains("answer")) {
+                String answerString = responseLine.split(":")[1].strip();
+                answer = Double.parseDouble(answerString);
+
+            }
+
+            if (responseLine.toLowerCase().contains("invalid")) {
+                invalidExpression = true;
+//                System.out.println("Invalid expression. Try again.");
+            }
+            responseLine = in.readLine();
+        }
+
+        if (invalidExpression)
+            System.out.println("Invalid expression. Try again.");
+        else
+            System.out.println("Result: "+answer);
+        return response;
+    }
 
     public static void main(String[] args)
     {
         // establish a connection by providing host and port
         // number
-        try (Socket socket = new Socket("localhost", 1234)) {
+
+        final int port = 1234;
+        final String address = "localhost";
+
+        try (Socket socket = new Socket(address, port)) {
 
             // writing to server
-            PrintWriter out = new PrintWriter(
+            out = new PrintWriter(
                     socket.getOutputStream(), true);
 
             // reading from server
-            BufferedReader in
-                    = new BufferedReader(new InputStreamReader(
-                    socket.getInputStream()));
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
             // object of scanner class
             Scanner sc = new Scanner(System.in);
             String line = null;
 
-//            System.out.print("What is your username? ");
-//            String uname = sc.nextLine();
-//            System.out.println("Welcome, %s. Type a math expression to send to the server, or 'q' to quit.".formatted(uname));
+            System.out.println("Connected to %s:%d".formatted(address, port));
 
-            out.println("[[\n" +
-                    "   Username: jsmith\n" +
-                    "   Seq: 1\n" +
-                    "   Action: join\n" +
-                    "]]");
-            out.flush();
-
-            Thread.sleep(2000);
-
-            out.println("[[\n" +
-                    "   Seq: 1\n" +
-                    "   Action: leave\n" +
-                    "]]");
-            out.flush();
-
-            String response;
-
-            while ((response = in.readLine()) != null) {
-                System.out.println(response);
+            System.out.print("What is your username? ");
+            String uname = sc.nextLine();
+            System.out.print("How many decimal places would you like your answers to have? ");
+            int precision = 3;
+            try {
+                precision = Integer.parseInt(sc.nextLine());
+            } catch (Exception e) {
+                System.out.println("Precision should be an integer. Goodbye.");
+                return;
             }
 
-//            while (!"exit".equalsIgnoreCase(line)) {
-//
-//                // reading from user
-//                System.out.print("Expression: ");
-//                line = sc.nextLine();
-//
-//                // sending the user input to server
-//                out.println(line);
-//                out.flush();
-//
-//                // displaying server reply
-//                System.out.println("Response: "
-//                        + in.readLine());
-//            }
+            sendWelcome(uname);
 
-            // closing the scanner object
+            System.out.printf("Welcome, %s. Type a math expression to send to the server, or 'q' to quit.\n", uname);
+
+            String input = "";
+            int seq = 1;
+            Request req = new Request();
+            req.username = uname;
+            req.precision = precision;
+            req.action = Action.CALCULATE;
+
+            while (true) {
+                System.out.print("Expression: ");
+                input = sc.nextLine();
+
+                if (input.strip().equalsIgnoreCase("q"))
+                    break;
+
+                req.seq = seq;
+                req.expression = input;
+
+                out.println(req.toString());
+
+                getResponse();
+
+                seq++;
+            }
+
+            System.out.println("Leaving. Goodbye, "+uname);
+
+            req.action = Action.LEAVE;
+            out.println(req.toString());
+
             sc.close();
         }
         catch (IOException e) {
             e.printStackTrace();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 }

@@ -8,7 +8,8 @@ public class Request {
     public int precision; // Desired number of decimal places in answer
 
     public String toString() {
-        String requestString = """
+
+        return """
                 [[
                     Username: %s
                     Seq: %d
@@ -23,8 +24,6 @@ public class Request {
                 expression,
                 precision
         ).strip();
-
-        return requestString;
     }
 }
 

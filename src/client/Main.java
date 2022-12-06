@@ -13,6 +13,11 @@ public class Main {
    static PrintWriter out = null;
    static BufferedReader in = null;
 
+    /**
+     * Forms a handshake request and sends it to the server
+     * @param username The current user
+     * @throws IOException whenever the socket closes unexpectedly
+     */
     static void sendWelcome(String username) throws IOException {
         Request handshakeReq = new Request();
         handshakeReq.seq = 0;
@@ -22,10 +27,15 @@ public class Main {
         out.println(handshakeReq.toString());
         String responseLine;
         while ((responseLine = in.readLine()) != null && !(responseLine = in.readLine()).contains("]]")) {
-
+            // Read through the server response to clear the buffer.
         }
     }
 
+
+    /**
+     * @return Response from server, wrapped as a Response object
+     * @throws IOException whenever socket closes unexpectedly
+     */
     static Response getResponse() throws IOException {
         Response response = new Response();
         String responseLine = in.readLine();

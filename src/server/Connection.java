@@ -13,63 +13,44 @@ import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.logging.*;
 
 public class Connection extends Thread {
-    private Socket socket;
-    private PrintWriter output;
-    private LocalDateTime connectionTime;
-    private DateTimeFormatter dtFormatter;
+    private final Logger logger;
+    private final Socket socket;
+    private final LocalDateTime connectionTime;
+    private final DateTimeFormatter dtFormatter;
     private String username = null;
     private PrintWriter out = null;
 
     boolean keepAlive = true;
-    boolean loggerIsSetup = false;
 
-    Logger logger = Logger.getLogger("ConnectionLog");
-    FileHandler fh;
 
-    public Connection(Socket socket) throws IOException {
+    /**
+     * Wrapper around Socket that handles math processing and our custom protocol
+     *
+     * @param socket Socket for incoming/outgoing messages
+     * @param logger Parent logger to record activity to
+     * @throws IOException When the client unexpectedly disconnects
+     */
+    public Connection(Socket socket, Logger logger) throws IOException {
         this.socket = socket;
         this.connectionTime = LocalDateTime.now();
+        this.logger = logger;
         this.dtFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
-
-
-
 
         logger.info("Client with IP %s connected at %s".formatted(socket.getInetAddress(), dtFormatter.format(connectionTime)));
     }
 
-    void setUpLogger() throws IOException {
-        if (loggerIsSetup)
-                return;
-        DateTimeFormatter logStampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss");
-        fh = new FileHandler("%s_%s.log".formatted(username, logStampFormatter.format(connectionTime)));
 
-        ConsoleHandler handler = new ConsoleHandler();
-        handler.setFormatter(new SimpleFormatter() {
-            private static final String format = "[%1$tF %1$tT] [%2$-7s] %3$s %n";
-
-            @Override
-            public synchronized String format(LogRecord lr) {
-                return String.format(format,
-                        new Date(lr.getMillis()),
-                        lr.getLevel().getLocalizedName(),
-                        lr.getMessage()
-                );
-            }
-        });
-        logger.addHandler(handler);
-        logger.addHandler(fh);
-        SimpleFormatter formatter = new SimpleFormatter();
-        fh.setFormatter(formatter);
-        loggerIsSetup = true;
-    }
-
-
-    // Thanks, Boann! https://stackoverflow.com/a/26227947/6238455
+    /**
+     * Function that calculates the answer of a math expression
+     * <a href="https://stackoverflow.com/a/26227947/6238455">Reference</a>
+     * @param str Math expression to be evaluated
+     * @return Answer, as a double
+     */
     double eval(final String str) {
         return new Object() {
             int pos = -1, ch;
@@ -140,11 +121,13 @@ public class Connection extends Thread {
                     } else {
                         x = parseFactor();
                     }
-                    if (func.equals("sqrt")) x = Math.sqrt(x);
-                    else if (func.equals("sin")) x = Math.sin(Math.toRadians(x));
-                    else if (func.equals("cos")) x = Math.cos(Math.toRadians(x));
-                    else if (func.equals("tan")) x = Math.tan(Math.toRadians(x));
-                    else throw new RuntimeException("Unknown function: " + func);
+                    x = switch (func) {
+                        case "sqrt" -> Math.sqrt(x);
+                        case "sin" -> Math.sin(Math.toRadians(x));
+                        case "cos" -> Math.cos(Math.toRadians(x));
+                        case "tan" -> Math.tan(Math.toRadians(x));
+                        default -> throw new RuntimeException("Unknown function: " + func);
+                    };
                 } else {
                     throw new RuntimeException("Unexpected: " + (char)ch);
                 }
@@ -156,6 +139,11 @@ public class Connection extends Thread {
         }.parse();
     }
 
+    /**
+     * Thin wrapper around eval() that formats the answer to the desired precision.
+     * @param request Request to be parsed
+     * @return Response with fields filled in
+     */
     Response parseExpression(Request request) {
         Response response = new Response();
         try {
@@ -178,12 +166,16 @@ public class Connection extends Thread {
             response.status = Status.SUCCESS;
         } catch (Exception e) {
             response.status = Status.ERROR;
-            logger.warning("Invalid expression detected. Exception: "+e);
+            logger.warning("%s sent invalid expression. Exception: %s".formatted(username, e));
             response.error = Error.INVALID_EXPRESSION;
         }
         return response;
     }
 
+    /**
+     * Given a request, perform the desired action.
+     * @param request Request to be processed
+     */
     void processRequest(Request request) {
         Response response = new Response();
         response.seq = request.seq;
@@ -203,7 +195,7 @@ public class Connection extends Thread {
                 break;
             case CALCULATE:
                 response = parseExpression(request);
-                logger.info("Expression: %s, answer: %f".formatted(request.expression, response.answer));
+                logger.info("%s sent expression: %s, answer: %f".formatted(username, request.expression, response.answer));
                 break;
             default: // Request action was not valid. Send an error response.
                 response.error = Error.MALFORMED_REQUEST;
@@ -227,6 +219,9 @@ public class Connection extends Thread {
         out.println(responseString);
     }
 
+    /**
+     * Wait for incoming network data (Requests) and send responses in an infinite loop.
+     */
     @Override
     public void run() {
         BufferedReader in = null;
@@ -249,54 +244,45 @@ public class Connection extends Thread {
                 String[] parts = requestLine.split(":");
                 String tag = parts[0].strip().toLowerCase();
 
-                if (requestLine.strip() == "[[")
+                if (Objects.equals(requestLine.strip(), "[["))
                     tag = "[[";
-                else if (requestLine.strip() == "]]")
+                else if (Objects.equals(requestLine.strip(), "]]"))
                     tag = "]]";
 
                 if (parts.length !=2 && !tag.contains("[[") && !tag.contains("]]")) {
                     request.action = Action.INVALID;
                     processRequest(request);
-                    logger.warning("Received malformed request. Offending line was: "+tag);
+                    logger.warning("%s sent malformed request. Offending line was: %s".formatted(username, tag));
                 }
 
                 switch (tag) {
-                    case "[[":
+                    case "[[" ->
                         // Begin a new request.
-                        request = new Request(); break;
-                    case "]]":
+                            request = new Request();
+                    case "]]" ->
                         // This is the end of a request. Process it.
-                        processRequest(request); break;
-                    case "seq":
-                        request.seq = Integer.parseInt(parts[1].strip()); break;
-                    case "username":
-                        username = parts[1].strip();
-                        setUpLogger();
-                        break;
-                    case "expression":
-                        request.expression = parts[1].strip(); break;
-                    case "precision":
-                        request.precision = Integer.parseInt(parts[1].strip()); break;
-                    case "action":
+                            processRequest(request);
+                    case "seq" -> request.seq = Integer.parseInt(parts[1].strip());
+                    case "username" -> username = parts[1].strip();
+                    case "expression" -> request.expression = parts[1].strip();
+                    case "precision" -> request.precision = Integer.parseInt(parts[1].strip());
+                    case "action" -> {
                         String actionString = parts[1].strip();
-                        switch (actionString.toLowerCase()){
-                            case "join":
-                                request.action = Action.JOIN; break;
-                            case "leave":
-                                request.action = Action.LEAVE; break;
-                            case "calculate":
-                                request.action = Action.CALCULATE; break;
-                            default:
-                                request.action = Action.INVALID; break;
+                        switch (actionString.toLowerCase()) {
+                            case "join" -> request.action = Action.JOIN;
+                            case "leave" -> request.action = Action.LEAVE;
+                            case "calculate" -> request.action = Action.CALCULATE;
+                            default -> request.action = Action.INVALID;
                         }
-                        break;
-                    default:
-                        logger.severe("Invalid line: "+requestLine);
+                    }
+                    default -> {
+                        logger.severe("%s sent invalid line: %s".formatted(username, requestLine));
                         request.action = Action.INVALID;
                         processRequest(request);
+                    }
                 }
 
-                if (keepAlive == false)
+                if (!keepAlive)
                     break;
             }
         } catch (IOException e) {
@@ -319,9 +305,5 @@ public class Connection extends Thread {
                 e.printStackTrace();
             }
         }
-    }
-
-    private String handleRequest(String request) {
-        return "Not Implemented";
     }
 }

@@ -1,5 +1,7 @@
 [toc]
 
+https://user-images.githubusercontent.com/16737488/205788324-1382dbcd-8e6a-4bbb-9c1c-b07bf206872c.mp4
+
 ## Objective
 
 Build a networking application using Java sockets. Specifically, the application should have a central Math server and 2+ clients.

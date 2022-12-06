@@ -7,6 +7,18 @@ Build a networking application using Java sockets. Specifically, the application
 ## Javadocs
 Javadocs are available at [https://heit.mn/networks-project](https://heit.mn/networks-project/protocol/package-summary.html)
 
+## Usage
+1. Start the server with `java server.Main`
+2. Start a client with `java client.Main`
+3. Follow the prompts for the client. It will ask for your username and desired answer precision.
+4. Send a math expression and wait for a response.
+5. Repeat steps 2-4 with an arbitrary number of clients.
+
+### Example expressions
+- `2+4-3/(4+5*(3-4))`
+- `2*sqrt(3)`
+- `(3^2)^3`
+
 ## Requirements
 - [x] The server keeps track of all users, including
     - Who

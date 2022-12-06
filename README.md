@@ -4,6 +4,9 @@
 
 Build a networking application using Java sockets. Specifically, the application should have a central Math server and 2+ clients.
 
+## Javadocs
+Javadocs are available at [https://heit.mn/networks-project](https://heit.mn/networks-project)
+
 ## Requirements
 - [x] The server keeps track of all users, including
     - Who
@@ -48,7 +51,7 @@ To establish a connection, the client and server must first perform a simple han
 ```
 ##### Response (success)
 
-```json
+```
 [[
     Seq:	1
     Status: success
@@ -57,7 +60,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Response (error)
 
-```json
+```
 [[
    	Seq: 1
     Status: error
@@ -69,7 +72,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Request
 
-```json
+```
 [[
     Seq: 54, 		// Example value
     Action: leave
@@ -78,7 +81,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Response
 
-```json
+```
 [[
     Seq: 54, 		// Example value
     Status: success
@@ -89,7 +92,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Request
 
-```json
+```
 [[
     Seq: 14, 		// Example value
     Action: calculate
@@ -100,7 +103,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Response (success)
 
-```json
+```
 [[
     Seq: 14 		// Example value
     Status: success
@@ -110,7 +113,7 @@ To establish a connection, the client and server must first perform a simple han
 
 ##### Response (error)
 
-```json
+```
 [[
    	Seq: 14
     Status: error
